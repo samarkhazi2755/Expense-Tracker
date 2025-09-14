@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Expense Tracker</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#06b6d4;--success:#22c55e}
+    *{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071029 0%, #082033 100%);color:#e6eef6;padding:24px}
+    .wrap{max-width:980px;margin:0 auto}
+
+    header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+    header h1{margin:0;font-size:20px}
+    .card{background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+
+    form{display:grid;grid-template-columns:1fr 110px 140px 120px 90px;gap:10px}
+    input,select{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    input[type=number]{-moz-appearance:textfield}
+    button{background:var(--accent);color:#021426;border:0;padding:10px;border-radius:8px;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+
+    .controls{display:flex;gap:8px;align-items:center;margin:12px 0}
+    .summary{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+    .stat{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;min-width:150px}
+
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:10px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:14px}
+    .muted{color:var(--muted);font-size:13px}
+    .actions button{margin-right:6px}
+
+    .empty{padding:18px;text-align:center;color:var(--muted)}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    @media (max-width:800px){form{grid-template-columns:1fr;}& table thead{display:none}& table tr{display:grid;grid-template-columns:1fr auto}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Expense Tracker</h1>
+        <div class="muted">Add, edit, delete & store locally</div>
+      </div>
+    </header>
+
+    <section class="card">
+      <form id="expense-form">
+        <input id="desc" placeholder="Description (e.g., Coffee)" required />
+        <input id="amount" type="number" step="0.01" placeholder="Amount" required />
+        <select id="category">
+          <option value="Food">Food</option>
+          <option value="Transport">Transport</option>
+          <option value="Shopping">Shopping</option>
+          <option value="Bills">Bills</option>
+          <option value="Other">Other</option>
+        </select>
+        <input id="date" type="date" />
+        <button id="save-btn" type="submit">Add</button>
+      </form>
+
+      <div class="controls">
+        <input id="search" placeholder="Search description..." />
+        <select id="filter-cat">
+          <option value="all">All categories</option>
+          <option>Food</option>
+          <option>Transport</option>
+          <option>Shopping</option>
+          <option>Bills</option>
+          <option>Other</option>
+        </select>
+        <select id="sort-by">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="amount-desc">Amount ↑</option>
+          <option value="amount-asc">Amount ↓</option>
+        </select>
+        <button id="clear-all" class="btn-ghost">Clear all</button>
+      </div>
+
+      <div class="summary">
+        <div class="stat">
+          <div class="muted">Total expenses</div>
+          <div id="total">₹0.00</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Count</div>
+          <div id="count">0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Last added</div>
+          <div id="last">—</div>
+        </div>
+      </div>
+
+      <div id="list-wrap">
+        <table id="expenses-table">
+          <thead>
+            <tr><th>Description</th><th>Category</th><th>Amount</th><th>Date</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="expenses-tbody"></tbody>
+        </table>
+        <div id="empty" class="empty" style="display:none">No expenses yet. Add one above.</div>
+      </div>
+
+    </section>
+
+    <footer class="muted">Save this file as <code>expenses.html</code> and open it in your browser. Data is stored locally on your device.</footer>
+  </div>
+
+  <script>
+    const KEY = 'expenses_v1'
+    let expenses = []
+    let editingId = null
+
+    // DOM
+    const form = document.getElementById('expense-form')
+    const desc = document.getElementById('desc')
+    const amount = document.getElementById('amount')
+    const category = document.getElementById('category')
+    const dateInput = document.getElementById('date')
+    const saveBtn = document.getElementById('save-btn')
+    const tbody = document.getElementById('expenses-tbody')
+    const totalEl = document.getElementById('total')
+    const countEl = document.getElementById('count')
+    const lastEl = document.getElementById('last')
+    const emptyEl = document.getElementById('empty')
+    const search = document.getElementById('search')
+    const filterCat = document.getElementById('filter-cat')
+    const sortBy = document.getElementById('sort-by')
+    const clearAll = document.getElementById('clear-all')
+
+    // load
+    function load(){
+      try{
+        const raw = localStorage.getItem(KEY)
+        expenses = raw ? JSON.parse(raw) : []
+      }catch(e){expenses=[]}
+      render()
+    }
+
+    function save(){
+      localStorage.setItem(KEY, JSON.stringify(expenses))
+      render()
+    }
+
+    function formatMoney(n){
+      return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(n)
+    }
+
+    function render(){
+      // apply search/filter/sort
+      const q = search.value.trim().toLowerCase()
+      let list = expenses.filter(e=> e.desc.toLowerCase().includes(q))
+      if(filterCat.value !== 'all') list = list.filter(e=> e.category === filterCat.value)
+      switch(sortBy.value){
+        case 'newest': list.sort((a,b)=> b.id - a.id); break
+        case 'oldest': list.sort((a,b)=> a.id - b.id); break
+        case 'amount-desc': list.sort((a,b)=> b.amount - a.amount); break
+        case 'amount-asc': list.sort((a,b)=> a.amount - b.amount); break
+      }
+
+      tbody.innerHTML = ''
+      if(list.length===0){document.getElementById('expenses-table').style.display='none'; emptyEl.style.display='block'} else {document.getElementById('expenses-table').style.display='table'; emptyEl.style.display='none'}
+
+      list.forEach(e=>{
+        const tr = document.createElement('tr')
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(e.desc)}</strong><div class="muted">${new Date(e.date).toLocaleDateString()}</div></td>
+          <td>${escapeHtml(e.category)}</td>
+          <td>${formatMoney(e.amount)}</td>
+          <td>${e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
+          <td class="actions">
+            <button data-id="${e.id}" class="edit">Edit</button>
+            <button data-id="${e.id}" class="del">Delete</button>
+          </td>`
+        tbody.appendChild(tr)
+      })
+
+      updateSummary()
+      attachRowListeners()
+    }
+
+    function updateSummary(){
+      const total = expenses.reduce((s,e)=> s + Number(e.amount), 0)
+      totalEl.textContent = formatMoney(total)
+      countEl.textContent = expenses.length
+      lastEl.textContent = expenses.length ? new Date(expenses[expenses.length-1].date || expenses[expenses.length-1].id).toLocaleDateString() : '—'
+    }
+
+    function attachRowListeners(){
+      document.querySelectorAll('.edit').forEach(btn=> btn.onclick = e=>{
+        const id = Number(e.target.dataset.id)
+        startEdit(id)
+      })
+      document.querySelectorAll('.del').forEach(btn=> btn.onclick = e=>{
+        const id = Number(e.target.dataset.id)
+        if(confirm('Delete this expense?')) { expenses = expenses.filter(x=> x.id !== id); save() }
+      })
+    }
+
+    function startEdit(id){
+      const item = expenses.find(x=> x.id === id)
+      if(!item) return
+      desc.value = item.desc
+      amount.value = item.amount
+      category.value = item.category
+      dateInput.value = item.date ? item.date.split('T')[0] : ''
+      editingId = id
+      saveBtn.textContent = 'Update'
+    }
+
+    function resetForm(){
+      form.reset(); editingId = null; saveBtn.textContent = 'Add'
+    }
+
+    form.addEventListener('submit', e=>{
+      e.preventDefault()
+      const d = desc.value.trim()
+      const a = Number(amount.value)
+      if(!d || !a) return alert('Please enter description and amount')
+      const obj = {desc:d, amount: a, category: category.value, date: dateInput.value || new Date().toISOString(), id: editingId || Date.now()}
+      if(editingId){
+        expenses = expenses.map(x=> x.id===editingId ? obj : x)
+      } else {
+        expenses.push(obj)
+      }
+      save()
+      resetForm()
+    })
+
+    search.addEventListener('input', render)
+    filterCat.addEventListener('change', render)
+    sortBy.addEventListener('change', render)
+
+    clearAll.addEventListener('click', ()=>{
+      if(confirm('Clear ALL expenses?')){ expenses = []; save() }
+    })
+
+    function escapeHtml(s){ return String(s).replace(/[&<>\"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]) }
+
+    load()
+  </script>
+</body>
+</html>
