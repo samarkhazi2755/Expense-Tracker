@@ -3,66 +3,573 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Expense Tracker</title>
+  <title>LEDGER — Expense Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#06b6d4;--success:#22c55e}
-    *{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
-    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071029 0%, #082033 100%);color:#e6eef6;padding:24px}
-    .wrap{max-width:980px;margin:0 auto}
+    :root {
+      --bg: #0e0f11;
+      --surface: #141618;
+      --surface-2: #1c1e21;
+      --surface-3: #222428;
+      --border: rgba(255,255,255,0.06);
+      --border-active: rgba(255,255,255,0.14);
+      --text: #e8eaed;
+      --text-muted: #6b7280;
+      --text-dim: #9ca3af;
+      --accent: #10b981;       /* emerald */
+      --accent-dim: rgba(16,185,129,0.12);
+      --accent-glow: rgba(16,185,129,0.25);
+      --gold: #d4a847;
+      --gold-dim: rgba(212,168,71,0.1);
+      --danger: #ef4444;
+      --danger-dim: rgba(239,68,68,0.1);
+      --blue: #3b82f6;
+      --radius: 8px;
+      --radius-lg: 14px;
+    }
 
-    header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
-    header h1{margin:0;font-size:20px}
-    .card{background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    form{display:grid;grid-template-columns:1fr 110px 140px 120px 90px;gap:10px}
-    input,select{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
-    input[type=number]{-moz-appearance:textfield}
-    button{background:var(--accent);color:#021426;border:0;padding:10px;border-radius:8px;cursor:pointer}
-    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+      overflow-x: hidden;
+    }
 
-    .controls{display:flex;gap:8px;align-items:center;margin:12px 0}
-    .summary{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
-    .stat{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;min-width:150px}
+    /* Subtle noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
 
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{padding:10px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:14px}
-    .muted{color:var(--muted);font-size:13px}
-    .actions button{margin-right:6px}
+    .layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
 
-    .empty{padding:18px;text-align:center;color:var(--muted)}
-    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    /* ─── SIDEBAR ─────────────────────────────── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 32px 0;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
 
-    @media (max-width:800px){form{grid-template-columns:1fr;}& table thead{display:none}& table tr{display:grid;grid-template-columns:1fr auto}}
+    .logo-wrap {
+      padding: 0 28px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 4px;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .logo-sub {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .sidebar-section {
+      padding: 24px 28px 0;
+    }
+
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ─── ADD FORM ─────────────────────────────── */
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      appearance: none;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-group input::placeholder { color: var(--text-muted); }
+
+    .form-group input[type=number] { -moz-appearance: textfield; }
+
+    .add-btn {
+      width: 100%;
+      margin-top: 6px;
+      padding: 11px;
+      background: var(--accent);
+      color: #021c12;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'Sora', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .add-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px var(--accent-glow);
+    }
+
+    .add-btn:active { transform: translateY(0); }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 20px 28px 0;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ─── MAIN ────────────────────────────────── */
+    .main {
+      padding: 36px 40px;
+      overflow-y: auto;
+    }
+
+    .main-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .main-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px;
+      letter-spacing: 3px;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .main-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ─── STATS ROW ─────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: 2px 2px 0 0;
+    }
+
+    .stat-card.green::after { background: var(--accent); }
+    .stat-card.gold::after { background: var(--gold); }
+    .stat-card.blue::after { background: var(--blue); }
+
+    .stat-card:hover { border-color: var(--border-active); }
+
+    .stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 34px;
+      letter-spacing: 1px;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.gold { color: var(--gold); }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ─── CONTROLS ─────────────────────────────── */
+    .controls-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .controls-bar input,
+    .controls-bar select {
+      padding: 9px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      appearance: none;
+    }
+
+    .controls-bar input { flex: 1; min-width: 180px; }
+    .controls-bar input::placeholder { color: var(--text-muted); }
+
+    .controls-bar input:focus,
+    .controls-bar select:focus { border-color: var(--border-active); }
+
+    .clear-btn {
+      padding: 9px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-family: 'Sora', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .clear-btn:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: var(--danger-dim);
+    }
+
+    /* ─── TRANSACTION TABLE ─────────────────────── */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .table-head {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.2fr 1fr 120px;
+      padding: 12px 20px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .th {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .tx-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.2fr 1fr 120px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      transition: background 0.15s;
+      animation: rowIn 0.25s ease forwards;
+    }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .tx-row:last-child { border-bottom: none; }
+    .tx-row:hover { background: var(--surface-2); }
+
+    .tx-desc {
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .tx-date-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+      margin-top: 2px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .badge-Food { background: rgba(245,158,11,0.12); color: #f59e0b; }
+    .badge-Transport { background: rgba(59,130,246,0.12); color: #60a5fa; }
+    .badge-Shopping { background: rgba(168,85,247,0.12); color: #c084fc; }
+    .badge-Bills { background: rgba(239,68,68,0.12); color: #f87171; }
+    .badge-Other { background: rgba(107,114,128,0.15); color: #9ca3af; }
+
+    .tx-amount {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--danger);
+    }
+
+    .tx-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .tx-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-edit, .btn-del {
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-family: 'Sora', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .btn-edit {
+      background: var(--surface-3);
+      border-color: var(--border);
+      color: var(--text-dim);
+    }
+    .btn-edit:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .btn-del {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-muted);
+    }
+    .btn-del:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: var(--danger-dim);
+    }
+
+    .empty-state {
+      padding: 64px 20px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.3;
+    }
+
+    .empty-text {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* ─── EDIT MODE ─────────────────────────────── */
+    .add-btn.editing {
+      background: var(--gold);
+      color: #1a1200;
+    }
+
+    .edit-indicator {
+      display: none;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .edit-indicator.visible { display: block; }
+
+    /* ─── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { height: auto; position: relative; padding: 24px 0; }
+      .main { padding: 24px 20px; }
+      .table-head { display: none; }
+      .tx-row { grid-template-columns: 1fr auto; gap: 6px; }
+      .tx-row > *:nth-child(3),
+      .tx-row > *:nth-child(4) { display: none; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>Expense Tracker</h1>
-        <div class="muted">Add, edit, delete & store locally</div>
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo-wrap">
+        <div class="logo">LED<span>G</span>ER</div>
+        <div class="logo-sub">Expense Intelligence</div>
       </div>
-    </header>
 
-    <section class="card">
-      <form id="expense-form">
-        <input id="desc" placeholder="Description (e.g., Coffee)" required />
-        <input id="amount" type="number" step="0.01" placeholder="Amount" required />
-        <select id="category">
-          <option value="Food">Food</option>
-          <option value="Transport">Transport</option>
-          <option value="Shopping">Shopping</option>
-          <option value="Bills">Bills</option>
-          <option value="Other">Other</option>
-        </select>
-        <input id="date" type="date" />
-        <button id="save-btn" type="submit">Add</button>
-      </form>
+      <div class="sidebar-section">
+        <div class="sidebar-label">New Entry</div>
 
-      <div class="controls">
-        <input id="search" placeholder="Search description..." />
+        <form id="expense-form">
+          <div class="form-group">
+            <label>Description</label>
+            <input id="desc" placeholder="e.g. Coffee, Netflix…" required />
+          </div>
+          <div class="form-group">
+            <label>Amount (₹)</label>
+            <input id="amount" type="number" step="0.01" placeholder="0.00" required />
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="category">
+              <option value="Food">🍔 Food</option>
+              <option value="Transport">🚗 Transport</option>
+              <option value="Shopping">🛍 Shopping</option>
+              <option value="Bills">💡 Bills</option>
+              <option value="Other">📦 Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input id="date" type="date" />
+          </div>
+          <button id="save-btn" class="add-btn" type="submit">+ Add Expense</button>
+          <div id="edit-indicator" class="edit-indicator">Editing entry — save to update</div>
+        </form>
+      </div>
+
+      <div class="sidebar-footer">
+        Data stored locally on your device. Nothing leaves your browser.
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="main-header">
+        <div>
+          <div class="main-title">Transactions</div>
+          <div class="main-date" id="current-date"></div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card green">
+          <div class="stat-label">Total Spent</div>
+          <div class="stat-value accent" id="total">₹0</div>
+          <div class="stat-sub" id="total-sub">all time</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">Transactions</div>
+          <div class="stat-value gold" id="count">0</div>
+          <div class="stat-sub">entries logged</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Last Entry</div>
+          <div class="stat-value" id="last" style="font-size:22px;letter-spacing:0.5px;font-family:'DM Mono',monospace">—</div>
+          <div class="stat-sub" id="last-desc">no data yet</div>
+        </div>
+      </div>
+
+      <!-- CONTROLS -->
+      <div class="controls-bar">
+        <input id="search" placeholder="🔍 Search transactions…" />
         <select id="filter-cat">
-          <option value="all">All categories</option>
+          <option value="all">All Categories</option>
           <option>Food</option>
           <option>Transport</option>
           <option>Shopping</option>
@@ -70,42 +577,30 @@
           <option>Other</option>
         </select>
         <select id="sort-by">
-          <option value="newest">Newest</option>
-          <option value="oldest">Oldest</option>
-          <option value="amount-desc">Amount ↑</option>
-          <option value="amount-asc">Amount ↓</option>
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="amount-desc">Highest Amount</option>
+          <option value="amount-asc">Lowest Amount</option>
         </select>
-        <button id="clear-all" class="btn-ghost">Clear all</button>
+        <button id="clear-all" class="clear-btn">Clear All</button>
       </div>
 
-      <div class="summary">
-        <div class="stat">
-          <div class="muted">Total expenses</div>
-          <div id="total">₹0.00</div>
+      <!-- TABLE -->
+      <div class="table-card">
+        <div class="table-head">
+          <div class="th">Description</div>
+          <div class="th">Category</div>
+          <div class="th">Amount</div>
+          <div class="th">Date</div>
+          <div class="th">Actions</div>
         </div>
-        <div class="stat">
-          <div class="muted">Count</div>
-          <div id="count">0</div>
-        </div>
-        <div class="stat">
-          <div class="muted">Last added</div>
-          <div id="last">—</div>
+        <div id="expenses-tbody"></div>
+        <div id="empty-state" class="empty-state" style="display:none">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">No transactions yet. Add your first expense.</div>
         </div>
       </div>
-
-      <div id="list-wrap">
-        <table id="expenses-table">
-          <thead>
-            <tr><th>Description</th><th>Category</th><th>Amount</th><th>Date</th><th>Actions</th></tr>
-          </thead>
-          <tbody id="expenses-tbody"></tbody>
-        </table>
-        <div id="empty" class="empty" style="display:none">No expenses yet. Add one above.</div>
-      </div>
-
-    </section>
-
-    <footer class="muted">Save this file as <code>expenses.html</code> and open it in your browser. Data is stored locally on your device.</footer>
+    </main>
   </div>
 
   <script>
@@ -113,131 +608,159 @@
     let expenses = []
     let editingId = null
 
-    // DOM
     const form = document.getElementById('expense-form')
-    const desc = document.getElementById('desc')
-    const amount = document.getElementById('amount')
-    const category = document.getElementById('category')
-    const dateInput = document.getElementById('date')
+    const descEl = document.getElementById('desc')
+    const amountEl = document.getElementById('amount')
+    const categoryEl = document.getElementById('category')
+    const dateEl = document.getElementById('date')
     const saveBtn = document.getElementById('save-btn')
+    const editIndicator = document.getElementById('edit-indicator')
     const tbody = document.getElementById('expenses-tbody')
     const totalEl = document.getElementById('total')
+    const totalSub = document.getElementById('total-sub')
     const countEl = document.getElementById('count')
     const lastEl = document.getElementById('last')
-    const emptyEl = document.getElementById('empty')
+    const lastDescEl = document.getElementById('last-desc')
+    const emptyState = document.getElementById('empty-state')
     const search = document.getElementById('search')
     const filterCat = document.getElementById('filter-cat')
     const sortBy = document.getElementById('sort-by')
     const clearAll = document.getElementById('clear-all')
 
-    // load
-    function load(){
-      try{
-        const raw = localStorage.getItem(KEY)
-        expenses = raw ? JSON.parse(raw) : []
-      }catch(e){expenses=[]}
+    // set today's date in header
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'})
+
+    // set default date
+    dateEl.value = new Date().toISOString().split('T')[0]
+
+    function load() {
+      try { expenses = JSON.parse(localStorage.getItem(KEY)) || [] } catch(e) { expenses = [] }
       render()
     }
 
-    function save(){
-      localStorage.setItem(KEY, JSON.stringify(expenses))
-      render()
+    function save() { localStorage.setItem(KEY, JSON.stringify(expenses)); render() }
+
+    function formatMoney(n) {
+      return new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', maximumFractionDigits:2}).format(n)
     }
 
-    function formatMoney(n){
-      return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(n)
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c])
     }
 
-    function render(){
-      // apply search/filter/sort
+    function render() {
       const q = search.value.trim().toLowerCase()
-      let list = expenses.filter(e=> e.desc.toLowerCase().includes(q))
-      if(filterCat.value !== 'all') list = list.filter(e=> e.category === filterCat.value)
-      switch(sortBy.value){
-        case 'newest': list.sort((a,b)=> b.id - a.id); break
-        case 'oldest': list.sort((a,b)=> a.id - b.id); break
-        case 'amount-desc': list.sort((a,b)=> b.amount - a.amount); break
-        case 'amount-asc': list.sort((a,b)=> a.amount - b.amount); break
+      let list = expenses.filter(e => e.desc.toLowerCase().includes(q))
+      if (filterCat.value !== 'all') list = list.filter(e => e.category === filterCat.value)
+      switch(sortBy.value) {
+        case 'newest': list.sort((a,b) => b.id - a.id); break
+        case 'oldest': list.sort((a,b) => a.id - b.id); break
+        case 'amount-desc': list.sort((a,b) => b.amount - a.amount); break
+        case 'amount-asc': list.sort((a,b) => a.amount - b.amount); break
       }
 
       tbody.innerHTML = ''
-      if(list.length===0){document.getElementById('expenses-table').style.display='none'; emptyEl.style.display='block'} else {document.getElementById('expenses-table').style.display='table'; emptyEl.style.display='none'}
 
-      list.forEach(e=>{
-        const tr = document.createElement('tr')
-        tr.innerHTML = `
-          <td><strong>${escapeHtml(e.desc)}</strong><div class="muted">${new Date(e.date).toLocaleDateString()}</div></td>
-          <td>${escapeHtml(e.category)}</td>
-          <td>${formatMoney(e.amount)}</td>
-          <td>${e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
-          <td class="actions">
-            <button data-id="${e.id}" class="edit">Edit</button>
-            <button data-id="${e.id}" class="del">Delete</button>
-          </td>`
-        tbody.appendChild(tr)
-      })
+      if (list.length === 0) {
+        emptyState.style.display = 'block'
+      } else {
+        emptyState.style.display = 'none'
+        list.forEach((e, i) => {
+          const d = e.date ? new Date(e.date) : new Date(e.id)
+          const dateStr = d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})
+          const row = document.createElement('div')
+          row.className = 'tx-row'
+          row.style.animationDelay = `${i * 0.04}s`
+          row.innerHTML = `
+            <div>
+              <div class="tx-desc">${escapeHtml(e.desc)}</div>
+              <div class="tx-date-sub">${dateStr}</div>
+            </div>
+            <div><span class="badge badge-${escapeHtml(e.category)}">${escapeHtml(e.category)}</span></div>
+            <div class="tx-amount">${formatMoney(e.amount)}</div>
+            <div class="tx-date">${dateStr}</div>
+            <div class="tx-actions">
+              <button class="btn-edit" data-id="${e.id}">Edit</button>
+              <button class="btn-del" data-id="${e.id}">Del</button>
+            </div>`
+          tbody.appendChild(row)
+        })
+      }
 
       updateSummary()
-      attachRowListeners()
+      attachListeners()
     }
 
-    function updateSummary(){
-      const total = expenses.reduce((s,e)=> s + Number(e.amount), 0)
+    function updateSummary() {
+      const total = expenses.reduce((s,e) => s + Number(e.amount), 0)
       totalEl.textContent = formatMoney(total)
+      totalSub.textContent = `${expenses.length} transaction${expenses.length !== 1 ? 's' : ''}`
       countEl.textContent = expenses.length
-      lastEl.textContent = expenses.length ? new Date(expenses[expenses.length-1].date || expenses[expenses.length-1].id).toLocaleDateString() : '—'
+
+      if (expenses.length) {
+        const last = expenses[expenses.length - 1]
+        const d = last.date ? new Date(last.date) : new Date(last.id)
+        lastEl.textContent = d.toLocaleDateString('en-IN', {day:'2-digit', month:'short'})
+        lastDescEl.textContent = last.desc
+      } else {
+        lastEl.textContent = '—'
+        lastDescEl.textContent = 'no data yet'
+      }
     }
 
-    function attachRowListeners(){
-      document.querySelectorAll('.edit').forEach(btn=> btn.onclick = e=>{
-        const id = Number(e.target.dataset.id)
-        startEdit(id)
-      })
-      document.querySelectorAll('.del').forEach(btn=> btn.onclick = e=>{
-        const id = Number(e.target.dataset.id)
-        if(confirm('Delete this expense?')) { expenses = expenses.filter(x=> x.id !== id); save() }
+    function attachListeners() {
+      document.querySelectorAll('.btn-edit').forEach(btn => btn.onclick = () => startEdit(Number(btn.dataset.id)))
+      document.querySelectorAll('.btn-del').forEach(btn => btn.onclick = () => {
+        if (confirm('Delete this transaction?')) {
+          expenses = expenses.filter(x => x.id !== Number(btn.dataset.id)); save()
+        }
       })
     }
 
-    function startEdit(id){
-      const item = expenses.find(x=> x.id === id)
-      if(!item) return
-      desc.value = item.desc
-      amount.value = item.amount
-      category.value = item.category
-      dateInput.value = item.date ? item.date.split('T')[0] : ''
+    function startEdit(id) {
+      const item = expenses.find(x => x.id === id)
+      if (!item) return
+      descEl.value = item.desc
+      amountEl.value = item.amount
+      categoryEl.value = item.category
+      dateEl.value = item.date ? item.date.split('T')[0] : ''
       editingId = id
-      saveBtn.textContent = 'Update'
+      saveBtn.textContent = '✓ Update Entry'
+      saveBtn.classList.add('editing')
+      editIndicator.classList.add('visible')
+      descEl.focus()
     }
 
-    function resetForm(){
-      form.reset(); editingId = null; saveBtn.textContent = 'Add'
+    function resetForm() {
+      form.reset()
+      dateEl.value = new Date().toISOString().split('T')[0]
+      editingId = null
+      saveBtn.textContent = '+ Add Expense'
+      saveBtn.classList.remove('editing')
+      editIndicator.classList.remove('visible')
     }
 
-    form.addEventListener('submit', e=>{
+    form.addEventListener('submit', e => {
       e.preventDefault()
-      const d = desc.value.trim()
-      const a = Number(amount.value)
-      if(!d || !a) return alert('Please enter description and amount')
-      const obj = {desc:d, amount: a, category: category.value, date: dateInput.value || new Date().toISOString(), id: editingId || Date.now()}
-      if(editingId){
-        expenses = expenses.map(x=> x.id===editingId ? obj : x)
+      const d = descEl.value.trim()
+      const a = Number(amountEl.value)
+      if (!d || !a) return alert('Please enter description and amount')
+      const obj = { desc: d, amount: a, category: categoryEl.value, date: dateEl.value || new Date().toISOString(), id: editingId || Date.now() }
+      if (editingId) {
+        expenses = expenses.map(x => x.id === editingId ? obj : x)
       } else {
         expenses.push(obj)
       }
-      save()
-      resetForm()
+      save(); resetForm()
     })
 
     search.addEventListener('input', render)
     filterCat.addEventListener('change', render)
     sortBy.addEventListener('change', render)
 
-    clearAll.addEventListener('click', ()=>{
-      if(confirm('Clear ALL expenses?')){ expenses = []; save() }
+    clearAll.addEventListener('click', () => {
+      if (confirm('Clear ALL transactions? This cannot be undone.')) { expenses = []; save() }
     })
-
-    function escapeHtml(s){ return String(s).replace(/[&<>\"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]) }
 
     load()
   </script>
